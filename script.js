@@ -48,6 +48,24 @@ function oceanEndpoint(start,heading,km){
   }
   return safe;
 }
+function tilePixel(point,zoom=15){
+  const n=2**zoom,lat=Math.max(-85,Math.min(85,point.lat))*Math.PI/180;
+  const xf=(point.lng+180)/360*n,yf=(1-Math.asinh(Math.tan(lat))/Math.PI)/2*n;
+  return {x:Math.floor(xf),y:Math.floor(yf),px:Math.floor((xf-Math.floor(xf))*256),py:Math.floor((yf-Math.floor(yf))*256),zoom};
+}
+function mapShowsWater(point){
+  const t=tilePixel(point);
+  return new Promise(resolve=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{try{const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});canvas.width=canvas.height=256;ctx.drawImage(image,0,0);let water=0,total=0;for(let x=-4;x<=4;x+=2)for(let y=-4;y<=4;y+=2){const [r,g,b]=ctx.getImageData(t.px+x,t.py+y,1,1).data;total+=1;if(b>r+18&&b>g-5)water+=1}resolve(water/total>.58)}catch{resolve(null)}};image.onerror=()=>resolve(null);image.src=`https://tile.openstreetmap.org/${t.zoom}/${t.x}/${t.y}.png`})
+}
+async function nearestVisibleWater(start,end){
+  let candidate=end;
+  for(let i=0;i<6;i+=1){
+    const water=await mapShowsWater(candidate);
+    if(water!==false)return candidate;
+    candidate={lat:start.lat+(candidate.lat-start.lat)*.5,lng:start.lng+(candidate.lng-start.lng)*.5};
+  }
+  return {...start};
+}
 function curvedRoute(start,end,heading){
   const points=[];const bend=Math.min(.012,Math.hypot(end.lat-start.lat,end.lng-start.lng)*.35);const side=(heading+90)*Math.PI/180;
   for(let i=0;i<=32;i++){const t=i/32,curve=Math.sin(Math.PI*t)*bend;const point={lat:start.lat+(end.lat-start.lat)*t+Math.cos(side)*curve,lng:start.lng+(end.lng-start.lng)*t+Math.sin(side)*curve};if(landFeatures.length&&landAt(point))break;points.push([point.lat,point.lng])}return points;
@@ -96,7 +114,7 @@ timedLiveButton.addEventListener('click',async()=>{
     timedLiveButton.textContent='분실 시각 기준 값 불러오기';
   }
 });
-$('#prediction-form').addEventListener('submit',e=>{
+$('#prediction-form').addEventListener('submit',async e=>{
   e.preventDefault();
   if($('#floating').value==='no'){alert('가라앉는 물체는 수면 이동 예측 대상이 아닙니다. 마지막 위치 주변을 수색해 주세요.');return}
   const hours=Math.max(1,Math.min(24,(Date.now()-new Date($('#lost-time').value))/36e5));
@@ -104,7 +122,7 @@ $('#prediction-form').addEventListener('submit',e=>{
   const typhoon=Number($('#typhoon').value)||0, stormBoost=1+typhoon*.28;
   const a=vector(cd,cs*(.6+.4*resist)*stormBoost), b=vector((wd+180)%360,ws*.198*resist*stormBoost), c=vector((pd+180)%360,ph*.32*resist*stormBoost);
   const total={x:a.x+b.x+c.x,y:a.y+b.y+c.y}; const heading=(Math.atan2(total.x,total.y)*180/Math.PI+360)%360;
-  const km=Math.max(.05,Math.min(20,Math.hypot(total.x,total.y)*hours)); const end=oceanEndpoint(chosen,heading,km);
+  const km=Math.max(.05,Math.min(20,Math.hypot(total.x,total.y)*hours)); const end=await nearestVisibleWater(chosen,oceanEndpoint(chosen,heading,km));
   const radius=Math.min(3,.25+ph*.35+ws*.035+hours*.025+typhoon*.45), probability=Math.max(35,Math.round(88-ph*10-ws*1.2-hours*.7-typhoon*7));
   $('#summary').textContent=`입력한 풍향·풍속, 해류, 파고를 기준으로 ${dir(heading)}쪽 약 ${km.toFixed(2)}km 지점이 예상 중심 위치입니다. 반경 ${radius.toFixed(2)}km 안에서 발견될 가능성을 약 ${probability}%로 표시합니다.`;
   $('#wind-stat').textContent=`${dir(wd)}풍 ${ws.toFixed(2)}m/s`;$('#current-stat').textContent=`${dir(cd)} ${cs.toFixed(2)}km/h`;$('#wave-stat').textContent=`${dir(pd)} · ${ph.toFixed(2)}m`;
