@@ -113,3 +113,11 @@ $('#report-form').addEventListener('submit',e=>{
   $('#report-list').insertAdjacentHTML('afterbegin',`<article class="report-item"><b>${item} 발견</b><small>${time}${note?` · ${note}`:''}</small><small class="storage">${storage}</small></article>`);
   $('#report-note').value='';alert('제보가 최근 제보 목록에 등록되었습니다.');
 });
+$('#report-form').addEventListener('submit',()=>setTimeout(()=>{
+  const card=$('#report-list .report-item');
+  if(card&&!card.querySelector('.complete-report'))card.insertAdjacentHTML('beforeend','<button type="button" class="complete-report">물건 인계 완료</button><small class="handoff-message" hidden>물건을 찾은 분에게 인계되어 제보가 완료되었습니다.</small>');
+},0));
+$('#report-list').addEventListener('click',e=>{
+  const button=e.target.closest('.complete-report');if(!button)return;
+  const card=button.closest('.report-item');button.disabled=true;button.textContent='인계 완료';card.classList.add('completed');card.querySelector('.handoff-message').hidden=false;
+});
