@@ -100,7 +100,7 @@ $('#prediction-form').addEventListener('submit',e=>{
   $('#summary').textContent=`입력한 풍향·풍속, 해류, 파고를 기준으로 ${dir(heading)}쪽 약 ${km.toFixed(2)}km 지점이 예상 중심 위치입니다. 반경 ${radius.toFixed(2)}km 안에서 발견될 가능성을 약 ${probability}%로 표시합니다.`;
   $('#wind-stat').textContent=`${dir(wd)}풍 ${ws.toFixed(2)}m/s`;$('#current-stat').textContent=`${dir(cd)} ${cs.toFixed(2)}km/h`;$('#wave-stat').textContent=`${dir(pd)} · ${ph.toFixed(2)}m`;
   if(resultMap)resultMap.remove();resultMap=L.map('result-map').setView([end.lat,end.lng],13);addTiles(resultMap);
-  const safeEnd=[end.lat,end.lng], route=[[chosen.lat,chosen.lng],safeEnd];
+  const safeEnd=[end.lat,end.lng], route=[safeEnd,[safeEnd[0]+.008,safeEnd[1]+.008]];
   L.marker([chosen.lat,chosen.lng]).addTo(resultMap).bindTooltip('분실 위치');
   [[.35,'높음 55%','#f05b5b'],[.7,'보통 30%','#ffad22'],[1,'낮음 15%','#ffd761']].forEach(([s,label,color])=>L.circle(safeEnd,{radius:radius*1000*s,color,weight:2,fillColor:color,fillOpacity:.12}).addTo(resultMap).bindTooltip(label));
   L.marker(safeEnd).addTo(resultMap).bindPopup(`예상 중심 위치 · ${probability}%`).openPopup();resultMap.fitBounds(route,{padding:[25,25]});showView('result-view');
