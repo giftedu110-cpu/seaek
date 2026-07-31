@@ -1,7 +1,7 @@
 const origin={lat:35.1587,lng:129.1604};
 const tileUrl='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 let chosen={...origin}, reportPoint=null, inputMap, resultMap, reportMap, inputPin, reportPin;
-let guards=[], landFeatures=[];
+let guards=[], landFeatures=window.seaekLand?.features||[];
 
 const $=s=>document.querySelector(s);
 L.Marker.prototype.options.icon=L.divIcon({className:'seaek-pin',iconSize:[30,30],iconAnchor:[15,30]});
@@ -29,7 +29,7 @@ reportMap.on('click',e=>{reportPoint={lat:e.latlng.lat,lng:e.latlng.lng};if(repo
 $('#lost-time').value=nowValue(); $('#report-time').value=nowValue();
 document.querySelector('fieldset .environment-grid').insertAdjacentHTML('beforeend','<label>태풍 영향<select id="typhoon"><option value="0">없음</option><option value="1">주의</option><option value="2">강함</option></select></label>');
 fetch('data/coast-guard.geojson').then(r=>r.ok?r.json():null).then(d=>guards=d?.features||[]).catch(()=>{});
-fetch('data/land.geojson').then(r=>r.ok?r.json():null).then(d=>landFeatures=d?.features||[]).catch(()=>{});
+if(!landFeatures.length)fetch('data/land.geojson').then(r=>r.ok?r.json():null).then(d=>landFeatures=d?.features||[]).catch(()=>{});
 function nearestGuard(p){
   return guards.map(f=>{const q=f.properties;const lat=Number(q.LAT),lng=Number(q.LOT);return {name:q.POL_NM,d:Math.hypot((lat-p.lat)*111,(lng-p.lng)*91)}}).sort((a,b)=>a.d-b.d)[0];
 }
@@ -38,6 +38,15 @@ function destination(start,heading,km){
   const r=Math.PI/180,a=km/6371,b=heading*r,p=start.lat*r,l=start.lng*r;
   const p2=Math.asin(Math.sin(p)*Math.cos(a)+Math.cos(p)*Math.sin(a)*Math.cos(b));
   return {lat:p2/r,lng:(l+Math.atan2(Math.sin(b)*Math.sin(a)*Math.cos(p),Math.cos(a)-Math.sin(p)*Math.sin(p2)))/r};
+}
+function oceanEndpoint(start,heading,km){
+  let safe={...start};
+  for(let i=1;i<=120;i+=1){
+    const candidate=destination(start,heading,km*i/120);
+    if(landFeatures.length&&landAt(candidate))break;
+    safe=candidate;
+  }
+  return safe;
 }
 function curvedRoute(start,end,heading){
   const points=[];const bend=Math.min(.012,Math.hypot(end.lat-start.lat,end.lng-start.lng)*.35);const side=(heading+90)*Math.PI/180;
@@ -95,7 +104,7 @@ $('#prediction-form').addEventListener('submit',e=>{
   const typhoon=Number($('#typhoon').value)||0, stormBoost=1+typhoon*.28;
   const a=vector(cd,cs*(.6+.4*resist)*stormBoost), b=vector((wd+180)%360,ws*.198*resist*stormBoost), c=vector((pd+180)%360,ph*.32*resist*stormBoost);
   const total={x:a.x+b.x+c.x,y:a.y+b.y+c.y}; const heading=(Math.atan2(total.x,total.y)*180/Math.PI+360)%360;
-  const km=Math.max(.05,Math.min(20,Math.hypot(total.x,total.y)*hours)); const end=destination(chosen,heading,km);
+  const km=Math.max(.05,Math.min(20,Math.hypot(total.x,total.y)*hours)); const end=oceanEndpoint(chosen,heading,km);
   const radius=Math.min(3,.25+ph*.35+ws*.035+hours*.025+typhoon*.45), probability=Math.max(35,Math.round(88-ph*10-ws*1.2-hours*.7-typhoon*7));
   $('#summary').textContent=`입력한 풍향·풍속, 해류, 파고를 기준으로 ${dir(heading)}쪽 약 ${km.toFixed(2)}km 지점이 예상 중심 위치입니다. 반경 ${radius.toFixed(2)}km 안에서 발견될 가능성을 약 ${probability}%로 표시합니다.`;
   $('#wind-stat').textContent=`${dir(wd)}풍 ${ws.toFixed(2)}m/s`;$('#current-stat').textContent=`${dir(cd)} ${cs.toFixed(2)}km/h`;$('#wave-stat').textContent=`${dir(pd)} · ${ph.toFixed(2)}m`;
