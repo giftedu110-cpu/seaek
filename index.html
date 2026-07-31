@@ -1,1 +1,86 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SEAEK | 바다 표류 예측</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"><link rel="stylesheet" href="style.css"></head><body><header><a href="#top">🌊 SEAEK</a><span>바다 위 분실물 표류 예측</span></header><main id="top"><section class="hero"><p>SMART OCEAN</p><h1>바다에 떠 있는 물건,<br><b>어디로 흘러갈까요?</b></h1><small>시연용 예상 결과입니다. 실제 구조 판단에는 사용할 수 없습니다.</small></section><section><h2>1. 분실 위치와 물체 정보</h2><div id="input-map"></div><p id="location">지도를 눌러 바다 위 분실 위치를 선택하세요.</p><form id="form"><div class="grid"><label>물체 종류<select id="item"><option>휴대전화</option><option>지갑</option><option>가방</option><option>물놀이 용품</option><option>기타</option></select></label><label>추정 무게 (kg)<input id="weight" type="number" min="0.05" max="100" step="0.05" value="0.3" required></label><label>물에 뜨나요?<select id="floating"><option value="yes">예, 물에 뜸</option><option value="no">아니요, 가라앉음</option></select></label><label>분실 시각<input id="time" type="datetime-local" required></label></div><button>실시간 바다 환경으로 예측하기</button></form></section><section id="result" hidden><h2>2. 예상 표류 경로</h2><p id="summary"></p><div id="result-map"></div><div class="cards"><article><small>풍향 · 풍속</small><strong id="wind">-</strong></article><article><small>해류</small><strong id="current">-</strong></article><article><small>파고</small><strong id="wave">-</strong></article></div><p class="note">출처: Open‑Meteo 실시간 기상·해양 모델. 육지 충돌과 건물 영향은 계산하지 않습니다.</p></section></main><footer>SEAEK · 고등학생 해양 안전 프로젝트</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script><script src="script.js"></script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SEAEK | 바다 분실물 찾기</title>
+  <link rel="stylesheet" href="leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar"><button class="brand" data-home aria-label="처음 화면으로">≋ SEAEK</button><span id="page-title">바다 분실물 추적</span><button class="icon-button" data-home aria-label="처음 화면으로">⌂</button></header>
+
+    <main>
+      <section id="home-view" class="view active">
+        <div class="home-hero">
+          <p class="eyebrow">SMART OCEAN LOST &amp; FOUND</p>
+          <h1>바다에서 잃어버린 물건,<br><em>SEAEK</em>으로 찾아요</h1>
+          <p class="home-copy">바다 환경을 직접 입력해 예상 이동 경로와 수색 우선 구역을 확인하세요.</p>
+          <div class="hero-map-art"><span class="map-pin">●</span><span class="island one"></span><span class="island two"></span><span class="boat">⌁</span></div>
+        </div>
+        <div class="home-actions">
+          <button class="action-card find" data-view="find-view"><span>⌕</span><b>내 물건 찾기</b><small>이동 경로 예측</small></button>
+          <button class="action-card report" data-view="report-view"><span>♧</span><b>찾은 물건 제보</b><small>발견 정보 등록</small></button>
+        </div>
+        <p class="demo-notice">시연용 예측 도구입니다. 실제 구조·수색 판단은 해양경찰 등 관계기관 안내를 따라야 합니다.</p>
+      </section>
+
+      <section id="find-view" class="view">
+        <div class="view-heading"><button class="back" data-home>←</button><div><p class="eyebrow">LOST ITEM</p><h2>분실 위치와 물체 정보</h2></div></div>
+        <div id="input-map" class="map"></div>
+        <p id="location" class="location-label">지도를 눌러 바다 쪽 분실 위치를 선택하세요.</p>
+        <form id="prediction-form">
+          <div class="form-card">
+            <label>물체 종류<select id="item"><option>휴대전화</option><option>지갑</option><option>가방</option><option>물놀이용품</option><option>기타</option></select></label>
+            <label>추정 무게 (kg)<input id="weight" type="number" min="0.01" step="any" value="0.3" required></label>
+            <label>물에 떠요?<select id="floating"><option value="yes">예, 물에 뜸</option><option value="no">아니요, 가라앉음</option></select></label>
+            <label>분실 시각<input id="lost-time" type="datetime-local" required></label>
+          </div>
+          <fieldset>
+            <legend>현재 바다 환경 직접 입력</legend>
+            <div class="environment-grid">
+              <label>풍향 (°)<input id="wind-dir" type="number" step="any" value="230"></label>
+              <label>풍속 (m/s)<input id="wind-speed" type="number" min="0" step="any" value="4.00"></label>
+              <label>해류 방향 (°)<input id="current-dir" type="number" step="any" value="90"></label>
+              <label>해류 속도 (km/h)<input id="current-speed" type="number" min="0" step="any" value="0.50"></label>
+              <label>파향 (°)<input id="wave-dir" type="number" step="any" value="230"></label>
+              <label>파고 (m)<input id="wave-height" type="number" min="0" step="any" value="0.50"></label>
+            </div>
+            <button type="button" class="text-button" id="live-button">현재 값 자동 입력</button>
+            <small id="live-note">Open-Meteo의 현재 예보 값을 불러옵니다. 연결이 안 되면 직접 입력한 값을 사용합니다.</small>
+          </fieldset>
+          <button class="primary-button" type="submit">AI 예측 시작</button>
+        </form>
+      </section>
+
+      <section id="result-view" class="view">
+        <div class="view-heading"><button class="back" data-view="find-view">←</button><div><p class="eyebrow">PREDICTION RESULT</p><h2>예상 이동 결과</h2></div></div>
+        <div id="result-map" class="map"></div>
+        <p id="summary" class="result-summary"></p>
+        <div class="stat-grid"><article><small>풍향 · 풍속</small><strong id="wind-stat">-</strong></article><article><small>해류</small><strong id="current-stat">-</strong></article><article><small>파고</small><strong id="wave-stat">-</strong></article></div>
+        <div class="probability-card"><b>수색 우선 구역</b><span>높음 55% · 보통 30% · 낮음 15%</span></div>
+        <button class="primary-button" data-view="find-view">다시 예측하기</button>
+      </section>
+
+      <section id="report-view" class="view">
+        <div class="view-heading"><button class="back" data-home>←</button><div><p class="eyebrow">COMMUNITY REPORT</p><h2>찾은 물건 제보</h2></div></div>
+        <div class="report-banner"><span>⌁</span><p><b>물건을 찾으셨나요?</b><br>발견 위치를 지도에서 선택해 제보해 주세요.</p></div>
+        <form id="report-form">
+          <div class="form-card one-column">
+            <label>발견한 물건<select id="report-item"><option>휴대전화</option><option>지갑</option><option>가방</option><option>물놀이용품</option><option>기타</option></select></label>
+            <label>발견 시각<input id="report-time" type="datetime-local" required></label>
+          </div>
+          <label class="map-label">발견 위치 지도에서 선택<div id="report-map" class="map small-map"></div></label>
+          <p id="report-location" class="location-label">지도를 눌러 발견 위치를 선택하세요.</p>
+          <label>메모 (선택)<textarea id="report-note" placeholder="물건의 색, 특징 등 필요한 정보만 적어 주세요. 연락처·상세 주소는 쓰지 마세요."></textarea></label>
+          <button class="primary-button" type="submit">제보 등록하기</button>
+        </form>
+        <h3>최근 제보</h3><div id="report-list" class="report-list"></div>
+      </section>
+    </main>
+    <nav class="bottom-nav"><button data-home class="selected">⌂<span>홈</span></button><button data-view="find-view">⌕<span>추적 지도</span></button><button data-view="report-view">♧<span>제보</span></button></nav>
+  </div>
+  <script src="leaflet.js"></script><script src="script.js"></script>
+</body>
+</html>
